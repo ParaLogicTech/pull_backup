@@ -8,9 +8,12 @@ import requests
 import base64
 import os
 import sys
+import glob
+import json
 from frappe.commands import pass_context, get_site
 from frappe.commands.site import _restore
 from frappe.utils import get_site_path
+from frappe.migrate import migrate
 from six.moves.urllib.parse import urlencode
 
 
@@ -28,16 +31,28 @@ def pull_backup(context, site, remote, api_key, api_secret):
 	site = get_site(context)
 	frappe.init(site=site)
 
+	site_path = get_site_path()
+	remote_backup_dir = os.path.join(site_path, 'private/remote_backups')
+
+	config_file_path = os.path.join(site_path, "pull_backup.json")
+	config = frappe._dict()
+	if os.path.exists(config_file_path):
+		with open(config_file_path, 'r') as f:
+			config = frappe._dict(json.loads(f.read()))
+
+	remote = remote or config.remote_url
 	if not remote:
 		print('Remote URL not provided')
 		sys.exit(1)
 
+	if not remote.endswith('/'):
+		remote = remote + '/'
+
+	api_key = api_key or config.api_key
+	api_secret = api_secret or config.api_secret
 	if not api_key or not api_secret:
 		print('API Key not provided')
 		sys.exit(1)
-
-	site_path = get_site_path()
-	remote_backup_dir = os.path.join(site_path, 'private/remote_backups')
 
 	base_url = remote
 	backups_query_url = base_url + "api/method/frappe.utils.backups.fetch_latest_backups"
@@ -69,6 +84,10 @@ def pull_backup(context, site, remote, api_key, api_secret):
 	if not os.path.exists(remote_backup_dir):
 		os.makedirs(remote_backup_dir)
 
+	to_remove = glob.glob(os.path.join(remote_backup_dir, '*'))
+	for fn in to_remove:
+		os.remove(fn)
+
 	for filetype in files_remote:
 		filename = os.path.basename(files_remote.get(filetype)) if files_remote.get(filetype) else None
 		files_remote[filetype] = filename
@@ -90,8 +109,8 @@ def pull_backup(context, site, remote, api_key, api_secret):
 				print('Invalid file received')
 				sys.exit(1)
 
-	return _restore(context, files_local.database,
-		with_public_files=files_local.public, with_private_files=files_local.private)
+	_restore(context, files_local.database, with_public_files=files_local.public, with_private_files=files_local.private)
+	migrate()
 
 
 def is_downloadable(response):
@@ -102,6 +121,7 @@ def is_downloadable(response):
 	if 'html' in content_type.lower():
 		return False
 	return True
+
 
 commands = [
 	pull_backup
