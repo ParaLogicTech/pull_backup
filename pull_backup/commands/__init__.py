@@ -26,8 +26,10 @@ def call_command(cmd, context):
 @click.option('--remote', help='URL of remote Frappe instance')
 @click.option('--api-key', help='URL of remote Frappe instance')
 @click.option('--api-secret', help='URL of remote Frappe instance')
+@click.option('--mariadb-root-username', default='root', help='Root username for MariaDB')
+@click.option('--mariadb-root-password', help='Root password for MariaDB')
 @pass_context
-def pull_backup(context, site, remote, api_key, api_secret):
+def pull_backup(context, site, remote, api_key, api_secret, mariadb_root_username=None, mariadb_root_password=None):
 	site = get_site(context)
 	frappe.init(site=site)
 
@@ -109,7 +111,10 @@ def pull_backup(context, site, remote, api_key, api_secret):
 				print('Invalid file received')
 				sys.exit(1)
 
-	_restore(context, files_local.database, with_public_files=files_local.public, with_private_files=files_local.private)
+	mariadb_root_username = mariadb_root_username or config.mariadb_root_username
+	mariadb_root_password = mariadb_root_password or config.mariadb_root_password
+	_restore(context, files_local.database, with_public_files=files_local.public, with_private_files=files_local.private,
+		mariadb_root_username=mariadb_root_username, mariadb_root_password=mariadb_root_password)
 	migrate()
 
 
