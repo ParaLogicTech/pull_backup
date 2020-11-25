@@ -11,9 +11,7 @@ import sys
 import glob
 import json
 from frappe.commands import pass_context, get_site
-from frappe.commands.site import _restore
 from frappe.utils import get_site_path
-from frappe.migrate import migrate
 from six.moves.urllib.parse import urlencode
 
 
@@ -113,9 +111,25 @@ def pull_backup(context, site, remote, api_key, api_secret, mariadb_root_usernam
 
 	mariadb_root_username = mariadb_root_username or config.mariadb_root_username
 	mariadb_root_password = mariadb_root_password or config.mariadb_root_password
-	_restore(context, files_local.database, with_public_files=files_local.public, with_private_files=files_local.private,
-		mariadb_root_username=mariadb_root_username, mariadb_root_password=mariadb_root_password)
-	migrate()
+
+	restore_command = "bench --site {0} --force restore '{1}'".format(site, files_local.database)
+	if files_local.public:
+		restore_command += " --with-public-files '{0}'".format(files_local.public)
+	if files_local.private:
+		restore_command += " --with-private-files '{0}'".format(files_local.private)
+	if mariadb_root_username:
+		restore_command += " --mariadb-root-username '{0}'".format(mariadb_root_username)
+	if mariadb_root_password:
+		restore_command += " --mariadb-root-password '{0}'".format(mariadb_root_password)
+
+	print("$ " + restore_command)
+	restore_status = os.system(restore_command)
+	if restore_status != 0:
+		sys.exit(1)
+
+	migrate_command = "bench --site {0} migrate".format(site)
+	print("$ " + migrate_command)
+	os.system(migrate_command)
 
 
 def is_downloadable(response):
