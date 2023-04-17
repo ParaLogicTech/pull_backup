@@ -10,6 +10,7 @@ import os
 import sys
 import glob
 import json
+import shutil
 from frappe.commands import pass_context, get_site
 from frappe.utils import get_site_path
 from six.moves.urllib.parse import urlencode
@@ -101,13 +102,13 @@ def pull_backup(context, site, remote, api_key, api_secret, mariadb_root_usernam
 			download_url = get_download_url(filename)
 			print("Downloading {0}".format(download_url))
 
-			download_response = requests.get(download_url, headers=headers)
-
-			if is_downloadable(download_response):
-				open(files_local.get(filetype), 'wb').write(download_response.content)
-			else:
-				print('Invalid file received')
-				sys.exit(1)
+			with requests.get(download_url, headers=headers, stream=True) as download_response:
+				if is_downloadable(download_response):
+					with open(files_local.get(filetype), 'wb') as f:
+						shutil.copyfileobj(download_response.raw, f)
+				else:
+					print('Invalid file received')
+					sys.exit(1)
 
 	mariadb_root_username = mariadb_root_username or config.mariadb_root_username
 	mariadb_root_password = mariadb_root_password or config.mariadb_root_password
