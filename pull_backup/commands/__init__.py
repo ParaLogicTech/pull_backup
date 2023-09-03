@@ -13,7 +13,7 @@ import json
 import shutil
 from frappe.commands import pass_context, get_site
 from frappe.utils import get_site_path
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 
 def call_command(cmd, context):
