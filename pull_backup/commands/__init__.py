@@ -59,7 +59,7 @@ def pull_backup(context, site, remote, api_key, api_secret, mariadb_root_usernam
 	backups_query_url = base_url + "api/method/frappe.utils.backups.fetch_latest_backups"
 
 	def get_download_url(fn):
-		return base_url + "api/method/pull_backup.download_backup?{0}".format(urlencode({'filename': fn}))
+		return base_url + "api/method/pull_backup.api.download_backup?{0}".format(urlencode({'filename': fn}))
 
 	api_concat = "{}:{}".format(api_key, api_secret)
 	api_encoded = base64.b64encode(api_concat.encode('utf-8'))
